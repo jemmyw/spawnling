@@ -5,10 +5,12 @@ class Spawnling
     RAILS_1_x = (::Rails::VERSION::MAJOR == 1) unless defined?(RAILS_1_x)
     RAILS_2_2 = ((::Rails::VERSION::MAJOR == 2 && ::Rails::VERSION::MINOR >= 2)) unless defined?(RAILS_2_2)
     RAILS_3_x = (::Rails::VERSION::MAJOR > 2) unless defined?(RAILS_3_x)
+    RAILS_4_x = (::Rails::VERSION::MAJOR > 3) unless defined?(RAILS_4_x)
   else
     RAILS_1_x = nil
     RAILS_2_2 = nil
     RAILS_3_x = nil
+    RAILS_4_x = nil
   end
 
   @@default_options = {
@@ -100,8 +102,8 @@ class Spawnling
       options[:method].call(proc { yield })
     elsif options[:method] == :thread
       # for versions before 2.2, check for allow_concurrency
-     if RAILS_2_2 || (defined?(ActiveRecord) && ActiveRecord::Base.respond_to?(:allow_concurrency)) ?
-          ActiveRecord::Base.allow_concurrency :  Rails.application.config.allow_concurrency
+     if RAILS_4_x || (RAILS_2_2 || (defined?(ActiveRecord) && ActiveRecord::Base.respond_to?(:allow_concurrency)) ?
+          ActiveRecord::Base.allow_concurrency : Rails.application.config.allow_concurrency)
        @type = :thread
        @handle = thread_it(options) { yield }
       else
@@ -128,7 +130,7 @@ class Spawnling
       end
     end
     # clean up connections from expired threads
-    ActiveRecord::Base.verify_active_connections!() if defined?(ActiveRecord)
+    verify_connections
   end
 
   protected
@@ -200,13 +202,24 @@ class Spawnling
 
   def thread_it(options)
     # clean up stale connections from previous threads
-    ActiveRecord::Base.verify_active_connections!() if defined?(ActiveRecord)
+    verify_connections!
+
     thr = Thread.new do
       # run the long-running code block
       ActiveRecord::Base.connection_pool.with_connection { yield  } if defined?(ActiveRecord)
     end
     thr.priority = -options[:nice] if options[:nice]
     return thr
+  end
+
+  def verify_connections!
+    if defined?(ActiveRecord)
+      if ActiveRecord::Base.respond_to? :clear_active_connections!
+        ActiveRecord::Base.clear_active_connections!
+      elsif ActiveRecord::Base.respond_to? :verify_active_connections!
+        ActiveRecord::Base.verify_active_connections!()
+      end
+    end
   end
 
   # In case we don't have rails, can't call opts.symbolize_keys

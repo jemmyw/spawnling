@@ -2,7 +2,7 @@ if defined?(ActiveRecord)
   # see activerecord/lib/active_record/connection_adaptors/abstract/connection_specification.rb
   class ActiveRecord::Base
     # reconnect without disconnecting
-    if ::Spawnling::RAILS_3_x || ::Spawnling::RAILS_2_2
+    if ::Spawnling::RAILS_4_x || ::Spawnling::RAILS_3_x || ::Spawnling::RAILS_2_2
       def self.spawn_reconnect(klass=self)
         # keep ancestors' connection_handlers around to avoid them being garbage collected in the forked child
         @@ancestor_connection_handlers ||= []
@@ -130,6 +130,10 @@ if need_passenger_patch
   end
 end
 
-if defined?(::ActiveSupport::Cache::MemCacheStore)
-  ::ActiveSupport::Cache::MemCacheStore.delegate :reset, :to => :@data
+begin
+  if defined?(::ActiveSupport::Cache::MemCacheStore)
+    ::ActiveSupport::Cache::MemCacheStore.delegate :reset, :to => :@data
+  end
+rescue LoadError
+  # on rails 4 dalli is required and may not be defined for MemCacheStore access
 end
