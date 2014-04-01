@@ -202,7 +202,7 @@ class Spawnling
 
   def thread_it(options)
     # clean up stale connections from previous threads
-    verify_connections!
+    self.class.verify_connections!
 
     thr = Thread.new do
       # run the long-running code block
@@ -212,7 +212,7 @@ class Spawnling
     return thr
   end
 
-  def verify_connections!
+  def self.verify_connections!
     if defined?(ActiveRecord)
       if ActiveRecord::Base.respond_to? :clear_active_connections!
         ActiveRecord::Base.clear_active_connections!
