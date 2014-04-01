@@ -130,7 +130,7 @@ class Spawnling
       end
     end
     # clean up connections from expired threads
-    verify_connections
+    verify_connections!
   end
 
   protected
